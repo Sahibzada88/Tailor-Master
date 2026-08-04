@@ -34,12 +34,15 @@ android {
     val debugBase64File = file("${rootDir}/debug.keystore.base64")
     if (!debugKeystoreFile.exists() && debugBase64File.exists()) {
       try {
-        val decodedBytes = Base64.getDecoder().decode(debugBase64File.readText().trim())
-        debugKeystoreFile.writeBytes(decodedBytes)
+        val cleanBase64 = debugBase64File.readText().replace("\\s".toRegex(), "")
+        val decodedBytes = Base64.getDecoder().decode(cleanBase64)
+        if (decodedBytes.isNotEmpty()) {
+          debugKeystoreFile.writeBytes(decodedBytes)
+        }
       } catch (_: Exception) {}
     }
 
-    if (debugKeystoreFile.exists()) {
+    if (debugKeystoreFile.exists() && debugKeystoreFile.length() > 0) {
       create("debugConfig") {
         storeFile = debugKeystoreFile
         storePassword = "android"
