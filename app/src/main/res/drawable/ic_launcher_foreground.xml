@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Background Accent Circle (Elegant Gold Emblem Ring) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="2.5"
+        android:pathData="M 54, 54 m -30, 0 a 30,30 0 1,1 60,0 a 30,30 0 1,1 -60,0" />
+
+    <!-- Sewing Needle / Thread Concept -->
+    <!-- Needle Thread Loop (Accenting Gold) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M 54, 25 C 48, 15 60, 10 54, 5 C 48, 0 35, 12 54, 20" />
+
+    <!-- Tailor Master Scissors (Left Part) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M 44, 74 C 41, 74 38, 71 38, 68 C 38, 65 41, 62 44, 62 C 47, 62 50, 65 50, 68 C 50, 71 47, 74 44, 74 Z M 44, 64 C 42, 64 40, 66 40, 68 C 40, 70 42, 72 44, 72 C 46, 72 48, 70 48, 68 C 48, 66 46, 64 44, 64 Z" />
+
+    <!-- Tailor Master Scissors (Right Part) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M 64, 74 C 61, 74 58, 71 58, 68 C 58, 65 61, 62 64, 62 C 67, 62 70, 65 70, 68 C 70, 71 67, 74 64, 74 Z M 64, 64 C 62, 64 60, 66 60, 68 C 60, 70 62, 72 64, 72 C 66, 72 68, 70 68, 68 C 68, 66 62, 64 64, 64 Z" />
+
+    <!-- Left Blade -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M 46, 63 L 53, 54 L 63, 34 C 64, 32 64.5, 32 64, 34 L 54, 52 L 44, 61 Z" />
+
+    <!-- Right Blade -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M 62, 63 L 55, 54 L 45, 34 C 44, 32 43.5, 32 44, 34 L 54, 52 L 64, 61 Z" />
+
+    <!-- Scissor Central Pivot Pin -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 54, 53 A 1.5,1.5 0 1,1 53.99,53 Z" />
+
+</vector>

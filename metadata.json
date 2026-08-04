@@ -1,0 +1,6 @@
+{
+  "name": "Tailor Book",
+  "description": "Offline-first tailor customer register and apparel measurement tracker (tailored for Pakistani Kameez, Kurta & Shalwar styles) with payment and order flow, receipts, and history reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
