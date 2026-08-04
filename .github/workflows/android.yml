@@ -1,0 +1,40 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        cache-disabled: true
+
+    # KSP background compilation crash ko rokne ke liye command-line arguments optimize kiye hain
+    # Iske sath signing configuration ko bypass karne ke liye tasks ko customize kiya gaya hai
+    - name: Build Android App
+      run: |
+        if [ -f "./gradlew" ]; then
+          ./gradlew assembleDebug -Dksp.incremental=false -Dorg.gradle.jvmargs="-Djava.awt.headless=true"
+        else
+          gradle assembleDebug -Dksp.incremental=false -Dorg.gradle.jvmargs="-Djava.awt.headless=true"
+        fi
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Tailor-Master-APK
+        path: ./**/build/outputs/apk/debug/app-debug.apk
