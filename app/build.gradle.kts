@@ -43,7 +43,7 @@ android {
     }
 
     if (debugKeystoreFile.exists() && debugKeystoreFile.length() > 0) {
-      create("debugConfig") {
+      getByName("debug") {
         storeFile = debugKeystoreFile
         storePassword = "android"
         keyAlias = "androiddebugkey"
@@ -60,12 +60,7 @@ android {
       signingConfig = signingConfigs.findByName("release")
     }
     debug {
-      val customDebugConfig = signingConfigs.findByName("debugConfig")
-      if (customDebugConfig != null) {
-        signingConfig = customDebugConfig
-      } else {
-        signingConfig = signingConfigs.getByName("debug")
-      }
+      signingConfig = signingConfigs.getByName("debug")
     }
   }
   compileOptions {
