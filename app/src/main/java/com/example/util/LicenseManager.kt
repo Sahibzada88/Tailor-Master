@@ -48,6 +48,12 @@ class LicenseManager(context: Context) {
                 .putString(KEY_EASYPAISA_NO, "03109674455")
                 .putString(KEY_EASYPAISA_NAME, "Sahibzada Abdullah Ahmad")
                 .apply()
+        } else {
+            // Force update EasyPaisa number to 03109674455 if it has the old placeholder number
+            val existingNo = prefs.getString(KEY_EASYPAISA_NO, "")
+            if (existingNo.isNullOrEmpty() || existingNo.contains("0300-1234567")) {
+                prefs.edit().putString(KEY_EASYPAISA_NO, "03109674455").apply()
+            }
         }
     }
 
@@ -87,7 +93,9 @@ class LicenseManager(context: Context) {
     }
 
     fun getEasyPaisaNumber(): String {
-        return prefs.getString(KEY_EASYPAISA_NO, "03109674455") ?: "03109674455"
+        val num = prefs.getString(KEY_EASYPAISA_NO, "03109674455") ?: "03109674455"
+        if (num.contains("0300-1234567") || num.isBlank()) return "03109674455"
+        return num
     }
 
     fun getEasyPaisaName(): String {
