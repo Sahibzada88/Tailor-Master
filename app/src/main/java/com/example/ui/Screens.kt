@@ -45,9 +45,18 @@ fun TailorAppMain(
     onSharePdf: (File) -> Unit
 ) {
     val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
+    val isActivated by viewModel.isActivated.collectAsStateWithLifecycle()
+    val isAppUnlocked by viewModel.isAppUnlocked.collectAsStateWithLifecycle()
     val toastMsg by viewModel.toastMessage.collectAsStateWithLifecycle()
     val generatedPdf by viewModel.generatedPdfFile.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    // Automatically navigate to Activation screen if trial expired and app is locked
+    LaunchedEffect(isAppUnlocked) {
+        if (!isAppUnlocked && currentScreen != TailorViewModel.Screen.ACTIVATION) {
+            viewModel.navigateTo(TailorViewModel.Screen.ACTIVATION)
+        }
+    }
 
     // Trigger toast notification
     LaunchedEffect(toastMsg) {
@@ -101,7 +110,7 @@ fun TailorAppMain(
                                     viewModel.navigateTo(TailorViewModel.Screen.ORDERS)
                                 }
                                 TailorViewModel.Screen.MEASUREMENTS -> viewModel.navigateTo(TailorViewModel.Screen.CUSTOMER_DETAIL)
-                                else -> viewModel.navigateTo(TailorViewModel.Screen.DASHBOARD)
+                                else -> viewModel.navigateTo(if (isAppUnlocked) TailorViewModel.Screen.DASHBOARD else TailorViewModel.Screen.ACTIVATION)
                             }
                         }) {
                             Icon(
@@ -112,17 +121,27 @@ fun TailorAppMain(
                         }
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.navigateTo(TailorViewModel.Screen.ACTIVATION) }) {
+                        Icon(
+                            imageVector = if (isActivated) Icons.Default.Verified else Icons.Default.VpnKey,
+                            contentDescription = "Activation",
+                            tint = if (isActivated) Color(0xFF00A859) else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
                 )
             )
         },
         bottomBar = {
-            // Standard Navigation Bar showing for core panels
-            if (currentScreen == TailorViewModel.Screen.DASHBOARD ||
+            // Standard Navigation Bar showing for core panels if app is unlocked
+            if (isAppUnlocked && (
+                currentScreen == TailorViewModel.Screen.DASHBOARD ||
                 currentScreen == TailorViewModel.Screen.CUSTOMERS ||
                 currentScreen == TailorViewModel.Screen.ORDERS
-            ) {
+            )) {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
                 ) {
@@ -172,6 +191,7 @@ fun TailorAppMain(
                     TailorViewModel.Screen.ADD_EDIT_CUSTOMER -> AddEditCustomerScreen(viewModel)
                     TailorViewModel.Screen.ADD_EDIT_ORDER -> AddEditOrderScreen(viewModel)
                     TailorViewModel.Screen.MEASUREMENTS -> EditMeasurementsScreen(viewModel)
+                    TailorViewModel.Screen.ACTIVATION -> ActivationScreen(viewModel)
                 }
             }
         }
@@ -188,6 +208,8 @@ fun DashboardScreen(viewModel: TailorViewModel) {
     val totalCollected by viewModel.totalCollected.collectAsStateWithLifecycle()
     val totalOutstanding by viewModel.totalOutstanding.collectAsStateWithLifecycle()
     val orders by viewModel.ordersWithCustomer.collectAsStateWithLifecycle()
+    val isActivated by viewModel.isActivated.collectAsStateWithLifecycle()
+    val remainingTrialDays by viewModel.remainingTrialDays.collectAsStateWithLifecycle()
     var dashboardPaymentDialogOrder by remember { mutableStateOf<OrderWithCustomer?>(null) }
 
     val pressingOrders = remember(orders) {
@@ -212,6 +234,57 @@ fun DashboardScreen(viewModel: TailorViewModel) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        if (!isActivated) {
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.navigateTo(TailorViewModel.Screen.ACTIVATION) },
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "1-Week Free Trial Active",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Text(
+                                    text = "$remainingTrialDays Days Remaining • Tap to Activate",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+                        Button(
+                            onClick = { viewModel.navigateTo(TailorViewModel.Screen.ACTIVATION) },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onTertiaryContainer)
+                        ) {
+                            Text("Activate", fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiaryContainer, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
         item {
             Box(
                 modifier = Modifier
@@ -3033,4 +3106,365 @@ fun FlowRow(
         verticalArrangement = verticalArrangement,
         content = content
     )
+}
+
+// 8. ACTIVATION & EASYPAISA SCREEN
+@Composable
+fun ActivationScreen(viewModel: TailorViewModel) {
+    val isActivated by viewModel.isActivated.collectAsStateWithLifecycle()
+    val isTrialActive by viewModel.isTrialActive.collectAsStateWithLifecycle()
+    val daysLeft by viewModel.remainingTrialDays.collectAsStateWithLifecycle()
+    val shopId by viewModel.shopId.collectAsStateWithLifecycle()
+    val epNumber by viewModel.easyPaisaNumber.collectAsStateWithLifecycle()
+    val epName by viewModel.easyPaisaName.collectAsStateWithLifecycle()
+
+    var keyInput by remember { mutableStateOf("") }
+    var showOwnerSettings by remember { mutableStateOf(false) }
+    var editEpNumber by remember { mutableStateOf(epNumber) }
+    var editEpName by remember { mutableStateOf(epName) }
+
+    val context = LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // App Brand Badge
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(if (isActivated) Color(0xFF1B807B) else MaterialTheme.colorScheme.primary),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isActivated) Icons.Default.Verified else Icons.Default.Lock,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(38.dp)
+            )
+        }
+
+        Text(
+            text = if (isActivated) "App Fully Activated!" else "Tailor Book License Activation",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center
+        )
+
+        // Status Banner Card
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = when {
+                    isActivated -> Color(0xFFE8F5E9)
+                    isTrialActive -> MaterialTheme.colorScheme.tertiaryContainer
+                    else -> MaterialTheme.colorScheme.errorContainer
+                }
+            ),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = when {
+                        isActivated -> Icons.Default.Verified
+                        isTrialActive -> Icons.Default.Timer
+                        else -> Icons.Default.Warning
+                    },
+                    contentDescription = null,
+                    tint = when {
+                        isActivated -> Color(0xFF2E7D32)
+                        isTrialActive -> MaterialTheme.colorScheme.onTertiaryContainer
+                        else -> MaterialTheme.colorScheme.onErrorContainer
+                    },
+                    modifier = Modifier.size(28.dp)
+                )
+                Column {
+                    Text(
+                        text = when {
+                            isActivated -> "Lifetime Premium Access Unlocked"
+                            isTrialActive -> "1-Week Free Trial Active ($daysLeft days left)"
+                            else -> "1-Week Free Trial Expired!"
+                        },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = when {
+                            isActivated -> Color(0xFF1B5E20)
+                            isTrialActive -> MaterialTheme.colorScheme.onTertiaryContainer
+                            else -> MaterialTheme.colorScheme.onErrorContainer
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = when {
+                            isActivated -> "Enjoy unlimited tailoring records, customer measurements & PDF receipts."
+                            isTrialActive -> "Trial will expire in $daysLeft days. Send payment via EasyPaisa to activate permanently."
+                            else -> "Please send payment via EasyPaisa to unlock full app access."
+                        },
+                        fontSize = 12.sp,
+                        color = when {
+                            isActivated -> Color(0xFF2E7D32)
+                            isTrialActive -> MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f)
+                            else -> MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
+                        }
+                    )
+                }
+            }
+        }
+
+        if (!isActivated) {
+            // EasyPaisa Payment Box
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF00A859)), // EasyPaisa Brand Green
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("EP", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                        }
+                        Text(
+                            text = "EasyPaisa Payment Details",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                    // EasyPaisa Number Box
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF00A859).copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("EasyPaisa Mobile Number:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                            Text(epNumber, fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF007A3E))
+                        }
+                        IconButton(onClick = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(epNumber))
+                            viewModel.showToast("EasyPaisa Number copied: $epNumber")
+                        }) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Number", tint = Color(0xFF00A859))
+                        }
+                    }
+
+                    // Shop ID
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Your Unique Shop ID:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                            Text(shopId, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(shopId))
+                            viewModel.showToast("Shop ID copied: $shopId")
+                        }) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Shop ID", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
+                    // Easy steps list in Urdu/English
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Kaise Activate Karen? (Steps):", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                        Text("1. Apne EasyPaisa app se uper diye gaye number ($epNumber) par fees bhejen.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("2. Payment screenshot/receipt WhatsApp par bhejen sath mein apna Shop ID ($shopId) likhen.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("3. Owner aapko Activation Key bhejega, usy neeche dakhil karke Activate button dabayein.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    // WhatsApp Button
+                    Button(
+                        onClick = {
+                            try {
+                                val msg = "Assalamu Alaikum! My Shop ID is $shopId. I have sent payment via EasyPaisa to $epNumber. Please send me my Activation Key."
+                                val encodedMsg = java.net.URLEncoder.encode(msg, "UTF-8")
+                                val cleanNum = epNumber.replace("-", "").replace(" ", "").removePrefix("0")
+                                val fullNum = if (cleanNum.startsWith("92")) cleanNum else "92$cleanNum"
+                                val intent = android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("https://api.whatsapp.com/send?phone=$fullNum&text=$encodedMsg")
+                                )
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                viewModel.showToast("Contact support at $epNumber directly.")
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)), // WhatsApp Green
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Chat, contentDescription = null, tint = Color.White)
+                            Text("Send Receipt on WhatsApp", fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+            }
+
+            // Enter Activation Key Card
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        text = "Enter Activation Key",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedTextField(
+                        value = keyInput,
+                        onValueChange = { keyInput = it },
+                        placeholder = { Text("e.g. TAILOR-786 or TB-59281-786") },
+                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+
+                    Button(
+                        onClick = {
+                            if (keyInput.isBlank()) {
+                                viewModel.showToast("Please enter activation key!")
+                            } else {
+                                viewModel.activateWithKey(keyInput)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Activate App Now", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                }
+            }
+
+            // Owner / Admin settings expandable section
+            TextButton(
+                onClick = { showOwnerSettings = !showOwnerSettings },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(
+                        imageVector = if (showOwnerSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(if (showOwnerSettings) "Hide Admin/Owner Settings" else "Admin / EasyPaisa Account Settings", fontSize = 12.sp)
+                }
+            }
+
+            if (showOwnerSettings) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("Owner Controls (Edit EasyPaisa Details)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+
+                        OutlinedTextField(
+                            value = editEpNumber,
+                            onValueChange = { editEpNumber = it },
+                            label = { Text("EasyPaisa Number") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        Button(
+                            onClick = {
+                                viewModel.updateEasyPaisaAccount(editEpNumber, editEpName)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Save Payment Details")
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        Text("Calculated Key for this Shop: ${viewModel.getExpectedKeyForCurrentShop()}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                        Text("Master Keys: TAILOR-786, TAILOR-2026, PAID123, etc.", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
+                    }
+                }
+            }
+        } else {
+            // Unlocked State View
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Verified, contentDescription = null, tint = Color(0xFF00A859), modifier = Modifier.size(52.dp))
+                    Text("Tailor Book Lifetime License Active", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = MaterialTheme.colorScheme.primary)
+                    Text("Shop ID: $shopId", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                    Text("JazakAllah! Your app is fully activated with unlimited access.", textAlign = TextAlign.Center, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Button(
+                        onClick = { viewModel.navigateTo(TailorViewModel.Screen.DASHBOARD) },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Text("Go to Dashboard")
+                    }
+                }
+            }
+        }
+    }
 }

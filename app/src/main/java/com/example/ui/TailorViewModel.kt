@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
+import com.example.util.LicenseManager
 import com.example.util.PdfGenerator
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -14,8 +15,20 @@ import java.io.File
 
 class TailorViewModel(application: Application, private val repository: TailorRepository) : AndroidViewModel(application) {
 
+    // License & Free Trial Manager
+    val licenseManager = LicenseManager(application)
+    val isActivated = MutableStateFlow(licenseManager.isActivated())
+    val remainingTrialDays = MutableStateFlow(licenseManager.getRemainingTrialDays())
+    val isTrialActive = MutableStateFlow(licenseManager.isTrialActive())
+    val isAppUnlocked = MutableStateFlow(licenseManager.isAppUnlocked())
+    val shopId = MutableStateFlow(licenseManager.getShopId())
+    val easyPaisaNumber = MutableStateFlow(licenseManager.getEasyPaisaNumber())
+    val easyPaisaName = MutableStateFlow(licenseManager.getEasyPaisaName())
+
     // Visual Screen Navigation State (lightweight & extremely high performant)
-    private val _currentScreen = MutableStateFlow(Screen.DASHBOARD)
+    private val _currentScreen = MutableStateFlow(
+        if (licenseManager.isAppUnlocked()) Screen.DASHBOARD else Screen.ACTIVATION
+    )
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
 
     enum class Screen {
@@ -25,7 +38,8 @@ class TailorViewModel(application: Application, private val repository: TailorRe
         CUSTOMER_DETAIL,
         ADD_EDIT_CUSTOMER,
         ADD_EDIT_ORDER,
-        MEASUREMENTS
+        MEASUREMENTS,
+        ACTIVATION
     }
 
     // Active Selections
@@ -375,6 +389,39 @@ class TailorViewModel(application: Application, private val repository: TailorRe
                 showToast("Error compiling dossier report PDF: ${e.localizedMessage}")
             }
         }
+    }
+
+    // License & Activation Actions
+    fun refreshLicenseState() {
+        isActivated.value = licenseManager.isActivated()
+        remainingTrialDays.value = licenseManager.getRemainingTrialDays()
+        isTrialActive.value = licenseManager.isTrialActive()
+        isAppUnlocked.value = licenseManager.isAppUnlocked()
+        shopId.value = licenseManager.getShopId()
+        easyPaisaNumber.value = licenseManager.getEasyPaisaNumber()
+        easyPaisaName.value = licenseManager.getEasyPaisaName()
+    }
+
+    fun activateWithKey(key: String): Boolean {
+        val success = licenseManager.verifyAndActivate(key)
+        refreshLicenseState()
+        if (success) {
+            showToast("Success! Tailor Book Activated Permanently.")
+            navigateTo(Screen.DASHBOARD)
+        } else {
+            showToast("Invalid Key! Please verify key or contact support on WhatsApp.")
+        }
+        return success
+    }
+
+    fun updateEasyPaisaAccount(number: String, name: String) {
+        licenseManager.setEasyPaisaDetails(number, name)
+        refreshLicenseState()
+        showToast("EasyPaisa account updated")
+    }
+
+    fun getExpectedKeyForCurrentShop(): String {
+        return licenseManager.generateExpectedKey(licenseManager.getShopId())
     }
 
     // Simple viewmodel factory helper
