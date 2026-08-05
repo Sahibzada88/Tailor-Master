@@ -3307,36 +3307,6 @@ fun ActivationScreen(viewModel: TailorViewModel) {
                         Text("2. Payment screenshot/receipt WhatsApp par bhejen sath mein apna Shop ID ($shopId) likhen.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("3. Owner aapko Activation Key bhejega, usy neeche dakhil karke Activate button dabayein.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-
-                    // WhatsApp Button
-                    Button(
-                        onClick = {
-                            try {
-                                val msg = "Assalamu Alaikum! My Shop ID is $shopId. I have sent payment via EasyPaisa to $epNumber. Please send me my Activation Key."
-                                val encodedMsg = java.net.URLEncoder.encode(msg, "UTF-8")
-                                val cleanNum = epNumber.replace("-", "").replace(" ", "").removePrefix("0")
-                                val fullNum = if (cleanNum.startsWith("92")) cleanNum else "92$cleanNum"
-                                val intent = android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse("https://api.whatsapp.com/send?phone=$fullNum&text=$encodedMsg")
-                                )
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                viewModel.showToast("Contact support at $epNumber directly.")
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)), // WhatsApp Green
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Default.Chat, contentDescription = null, tint = Color.White)
-                            Text("Send Receipt on WhatsApp", fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
                 }
             }
 
@@ -3362,7 +3332,6 @@ fun ActivationScreen(viewModel: TailorViewModel) {
                     OutlinedTextField(
                         value = keyInput,
                         onValueChange = { keyInput = it },
-                        placeholder = { Text("e.g. TAILOR-786 or TB-59281-786") },
                         leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
