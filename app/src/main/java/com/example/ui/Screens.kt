@@ -3119,9 +3119,6 @@ fun ActivationScreen(viewModel: TailorViewModel) {
     val epName by viewModel.easyPaisaName.collectAsStateWithLifecycle()
 
     var keyInput by remember { mutableStateOf("") }
-    var showOwnerSettings by remember { mutableStateOf(false) }
-    var editEpNumber by remember { mutableStateOf(epNumber) }
-    var editEpName by remember { mutableStateOf(epName) }
 
     val context = LocalContext.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -3351,59 +3348,6 @@ fun ActivationScreen(viewModel: TailorViewModel) {
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("Activate App Now", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    }
-                }
-            }
-
-            // Owner / Admin settings expandable section
-            TextButton(
-                onClick = { showOwnerSettings = !showOwnerSettings },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(
-                        imageVector = if (showOwnerSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(if (showOwnerSettings) "Hide Admin/Owner Settings" else "Admin / EasyPaisa Account Settings", fontSize = 12.sp)
-                }
-            }
-
-            if (showOwnerSettings) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text("Owner Controls (Edit EasyPaisa Details)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
-
-                        OutlinedTextField(
-                            value = editEpNumber,
-                            onValueChange = { editEpNumber = it },
-                            label = { Text("EasyPaisa Number") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-
-                        Button(
-                            onClick = {
-                                viewModel.updateEasyPaisaAccount(editEpNumber, editEpName)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("Save Payment Details")
-                        }
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                        Text("Calculated Key for this Shop: ${viewModel.getExpectedKeyForCurrentShop()}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
-                        Text("Master Keys: TAILOR-786, TAILOR-2026, PAID123, etc.", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
                     }
                 }
             }
