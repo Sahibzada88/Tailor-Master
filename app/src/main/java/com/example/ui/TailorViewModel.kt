@@ -446,11 +446,21 @@ class TailorViewModel(application: Application, private val repository: TailorRe
                 rootJson.put("orders", ordersArray)
 
                 val dateStr = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
-                val backupFile = java.io.File(context.cacheDir, "TailorBook_Backup_$dateStr.json")
+                val fileName = "TailorBook_Backup_$dateStr.json"
+                val backupFile = java.io.File(context.cacheDir, fileName)
                 backupFile.writeText(rootJson.toString(2))
 
+                // Also try saving to public/external Downloads folder for direct access
+                try {
+                    val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                    if (downloadsDir != null && (downloadsDir.exists() || downloadsDir.mkdirs())) {
+                        val externalBackup = java.io.File(downloadsDir, fileName)
+                        externalBackup.writeText(rootJson.toString(2))
+                    }
+                } catch (_: Exception) {}
+
                 onShareBackup(backupFile)
-                showToast("Backup saved: ${backupFile.name}")
+                showToast("Backup created: $fileName")
             } catch (e: Exception) {
                 showToast("Backup error: ${e.localizedMessage}")
             }
