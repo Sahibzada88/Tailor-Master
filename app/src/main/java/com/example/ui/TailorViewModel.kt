@@ -348,6 +348,8 @@ class TailorViewModel(application: Application, private val repository: TailorRe
         }
     }
 
+    val lastBackupPath = MutableStateFlow<String?>(null)
+
     fun exportBackupData(context: Context, onShareBackup: (java.io.File) -> Unit) {
         viewModelScope.launch {
             try {
@@ -450,17 +452,22 @@ class TailorViewModel(application: Application, private val repository: TailorRe
                 val backupFile = java.io.File(context.cacheDir, fileName)
                 backupFile.writeText(rootJson.toString(2))
 
-                // Also try saving to public/external Downloads folder for direct access
+                var displayPath = backupFile.absolutePath
+
+                // Also try saving to public Downloads folder for direct user file access
                 try {
                     val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
                     if (downloadsDir != null && (downloadsDir.exists() || downloadsDir.mkdirs())) {
                         val externalBackup = java.io.File(downloadsDir, fileName)
                         externalBackup.writeText(rootJson.toString(2))
+                        displayPath = externalBackup.absolutePath
                     }
                 } catch (_: Exception) {}
 
+                lastBackupPath.value = displayPath
+
                 onShareBackup(backupFile)
-                showToast("Backup created: $fileName")
+                showToast("Backup saved to: $displayPath")
             } catch (e: Exception) {
                 showToast("Backup error: ${e.localizedMessage}")
             }
