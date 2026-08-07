@@ -58,4 +58,14 @@ class TailorRepository(private val tailorDao: TailorDao) {
     suspend fun deleteOrder(order: Order) {
         tailorDao.deleteOrder(order)
     }
+
+    suspend fun getAllCustomersList(): List<Customer> = tailorDao.getAllCustomersList()
+    suspend fun getAllMeasurementsList(): List<CustomerMeasurement> = tailorDao.getAllMeasurementsList()
+    suspend fun getAllOrdersList(): List<Order> = tailorDao.getAllOrdersList()
+
+    suspend fun restoreData(customers: List<Customer>, measurements: List<CustomerMeasurement>, orders: List<Order>) {
+        if (customers.isNotEmpty()) tailorDao.insertCustomers(customers)
+        if (measurements.isNotEmpty()) tailorDao.insertMeasurements(measurements)
+        if (orders.isNotEmpty()) tailorDao.insertOrders(orders)
+    }
 }

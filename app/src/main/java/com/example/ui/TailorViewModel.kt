@@ -39,7 +39,8 @@ class TailorViewModel(application: Application, private val repository: TailorRe
         ADD_EDIT_CUSTOMER,
         ADD_EDIT_ORDER,
         MEASUREMENTS,
-        ACTIVATION
+        ACTIVATION,
+        SETTINGS_BACKUP
     }
 
     // Active Selections
@@ -99,6 +100,22 @@ class TailorViewModel(application: Application, private val repository: TailorRe
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val activeOrderCount: StateFlow<Int> = repository.activeOrderCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val stitchedOrderCount: StateFlow<Int> = ordersWithCustomer
+        .map { list -> list.count { it.status == "COMPLETED" || it.status == "DELIVERED" } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val pendingOrderCount: StateFlow<Int> = ordersWithCustomer
+        .map { list -> list.count { it.status == "PENDING" } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val inProgressOrderCount: StateFlow<Int> = ordersWithCustomer
+        .map { list -> list.count { it.status == "IN_PROGRESS" } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val deliveredOrderCount: StateFlow<Int> = ordersWithCustomer
+        .map { list -> list.count { it.status == "DELIVERED" } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val totalRevenue: StateFlow<Double> = repository.totalRevenue
@@ -224,7 +241,17 @@ class TailorViewModel(application: Application, private val repository: TailorRe
         trouserLength: Double,
         trouserBottom: Double,
         trouserAsan: Double,
-        orderNotes: String
+        orderNotes: String,
+        galaType: String = "کالر",
+        collarSize: String = "درمیانہ",
+        sleeveDesign: String = "آستین سادہ",
+        frontPatti: Boolean = true,
+        frontPocket: Boolean = true,
+        sidePocket: String = "2",
+        daman: String = "گول",
+        shalwarWidth: String = "نارمل",
+        shalwarPocket: Boolean = false,
+        bukramQuality: String = "2 (درمیانی)"
     ) {
         viewModelScope.launch {
             val customerId = selectedCustomer.value?.id ?: 0L
@@ -265,7 +292,17 @@ class TailorViewModel(application: Application, private val repository: TailorRe
                     trouserLength = trouserLength,
                     trouserBottom = trouserBottom,
                     trouserAsan = trouserAsan,
-                    orderNotes = orderNotes
+                    orderNotes = orderNotes,
+                    galaType = galaType,
+                    collarSize = collarSize,
+                    sleeveDesign = sleeveDesign,
+                    frontPatti = frontPatti,
+                    frontPocket = frontPocket,
+                    sidePocket = sidePocket,
+                    daman = daman,
+                    shalwarWidth = shalwarWidth,
+                    shalwarPocket = shalwarPocket,
+                    bukramQuality = bukramQuality
                 )
                 repository.updateOrder(updated)
                 showToast("Order #${updated.id} (${updated.trackingId}) updated")
@@ -291,13 +328,239 @@ class TailorViewModel(application: Application, private val repository: TailorRe
                     trouserLength = trouserLength,
                     trouserBottom = trouserBottom,
                     trouserAsan = trouserAsan,
-                    orderNotes = orderNotes
+                    orderNotes = orderNotes,
+                    galaType = galaType,
+                    collarSize = collarSize,
+                    sleeveDesign = sleeveDesign,
+                    frontPatti = frontPatti,
+                    frontPocket = frontPocket,
+                    sidePocket = sidePocket,
+                    daman = daman,
+                    shalwarWidth = shalwarWidth,
+                    shalwarPocket = shalwarPocket,
+                    bukramQuality = bukramQuality
                 )
                 repository.insertOrder(newOrder)
                 showToast("Order registered with Tracking ID: $finalTrackingId")
             }
             orderBeingEdited.value = null
             navigateTo(Screen.ORDERS)
+        }
+    }
+
+    fun exportBackupData(context: Context, onShareBackup: (java.io.File) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val customersList = repository.getAllCustomersList()
+                val measurementsList = repository.getAllMeasurementsList()
+                val ordersList = repository.getAllOrdersList()
+
+                val rootJson = org.json.JSONObject()
+                rootJson.put("appName", "TailorBook")
+                rootJson.put("version", 1)
+                rootJson.put("exportTime", System.currentTimeMillis())
+
+                val customersArray = org.json.JSONArray()
+                for (c in customersList) {
+                    val cObj = org.json.JSONObject()
+                    cObj.put("id", c.id)
+                    cObj.put("name", c.name)
+                    cObj.put("phone", c.phone)
+                    cObj.put("address", c.address)
+                    cObj.put("gender", c.gender)
+                    cObj.put("dateAdded", c.dateAdded)
+                    customersArray.put(cObj)
+                }
+                rootJson.put("customers", customersArray)
+
+                val measurementsArray = org.json.JSONArray()
+                for (m in measurementsList) {
+                    val mObj = org.json.JSONObject()
+                    mObj.put("customerId", m.customerId)
+                    mObj.put("shirtLength", m.shirtLength)
+                    mObj.put("shoulder", m.shoulder)
+                    mObj.put("sleeves", m.sleeves)
+                    mObj.put("chest", m.chest)
+                    mObj.put("waist", m.waist)
+                    mObj.put("hip", m.hip)
+                    mObj.put("collar", m.collar)
+                    mObj.put("armhole", m.armhole)
+                    mObj.put("sleeveMori", m.sleeveMori)
+                    mObj.put("trouserLength", m.trouserLength)
+                    mObj.put("trouserBottom", m.trouserBottom)
+                    mObj.put("trouserAsan", m.trouserAsan)
+                    mObj.put("notes", m.notes)
+                    mObj.put("lastUpdated", m.lastUpdated)
+                    mObj.put("galaType", m.galaType)
+                    mObj.put("collarSize", m.collarSize)
+                    mObj.put("sleeveDesign", m.sleeveDesign)
+                    mObj.put("frontPatti", m.frontPatti)
+                    mObj.put("frontPocket", m.frontPocket)
+                    mObj.put("sidePocket", m.sidePocket)
+                    mObj.put("daman", m.daman)
+                    mObj.put("shalwarWidth", m.shalwarWidth)
+                    mObj.put("shalwarPocket", m.shalwarPocket)
+                    mObj.put("bukramQuality", m.bukramQuality)
+                    measurementsArray.put(mObj)
+                }
+                rootJson.put("measurements", measurementsArray)
+
+                val ordersArray = org.json.JSONArray()
+                for (o in ordersList) {
+                    val oObj = org.json.JSONObject()
+                    oObj.put("id", o.id)
+                    oObj.put("customerId", o.customerId)
+                    oObj.put("trackingId", o.trackingId)
+                    oObj.put("itemType", o.itemType)
+                    oObj.put("clothType", o.clothType)
+                    oObj.put("totalAmount", o.totalAmount)
+                    oObj.put("paidAmount", o.paidAmount)
+                    oObj.put("status", o.status)
+                    oObj.put("orderDate", o.orderDate)
+                    oObj.put("dueDate", o.dueDate)
+                    oObj.put("shirtLength", o.shirtLength)
+                    oObj.put("shoulder", o.shoulder)
+                    oObj.put("sleeves", o.sleeves)
+                    oObj.put("chest", o.chest)
+                    oObj.put("waist", o.waist)
+                    oObj.put("hip", o.hip)
+                    oObj.put("collar", o.collar)
+                    oObj.put("armhole", o.armhole)
+                    oObj.put("sleeveMori", o.sleeveMori)
+                    oObj.put("trouserLength", o.trouserLength)
+                    oObj.put("trouserBottom", o.trouserBottom)
+                    oObj.put("trouserAsan", o.trouserAsan)
+                    oObj.put("orderNotes", o.orderNotes)
+                    oObj.put("galaType", o.galaType)
+                    oObj.put("collarSize", o.collarSize)
+                    oObj.put("sleeveDesign", o.sleeveDesign)
+                    oObj.put("frontPatti", o.frontPatti)
+                    oObj.put("frontPocket", o.frontPocket)
+                    oObj.put("sidePocket", o.sidePocket)
+                    oObj.put("daman", o.daman)
+                    oObj.put("shalwarWidth", o.shalwarWidth)
+                    oObj.put("shalwarPocket", o.shalwarPocket)
+                    oObj.put("bukramQuality", o.bukramQuality)
+                    ordersArray.put(oObj)
+                }
+                rootJson.put("orders", ordersArray)
+
+                val dateStr = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+                val backupFile = java.io.File(context.cacheDir, "TailorBook_Backup_$dateStr.json")
+                backupFile.writeText(rootJson.toString(2))
+
+                onShareBackup(backupFile)
+                showToast("Backup saved: ${backupFile.name}")
+            } catch (e: Exception) {
+                showToast("Backup error: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun restoreBackupData(jsonString: String) {
+        viewModelScope.launch {
+            try {
+                val rootJson = org.json.JSONObject(jsonString)
+
+                val customersList = mutableListOf<Customer>()
+                val customersArray = rootJson.optJSONArray("customers") ?: org.json.JSONArray()
+                for (i in 0 until customersArray.length()) {
+                    val cObj = customersArray.getJSONObject(i)
+                    customersList.add(
+                        Customer(
+                            id = cObj.optLong("id", 0L),
+                            name = cObj.optString("name", ""),
+                            phone = cObj.optString("phone", ""),
+                            address = cObj.optString("address", ""),
+                            gender = cObj.optString("gender", "Male"),
+                            dateAdded = cObj.optLong("dateAdded", System.currentTimeMillis())
+                        )
+                    )
+                }
+
+                val measurementsList = mutableListOf<CustomerMeasurement>()
+                val measurementsArray = rootJson.optJSONArray("measurements") ?: org.json.JSONArray()
+                for (i in 0 until measurementsArray.length()) {
+                    val mObj = measurementsArray.getJSONObject(i)
+                    measurementsList.add(
+                        CustomerMeasurement(
+                            customerId = mObj.optLong("customerId", 0L),
+                            shirtLength = mObj.optDouble("shirtLength", 0.0),
+                            shoulder = mObj.optDouble("shoulder", 0.0),
+                            sleeves = mObj.optDouble("sleeves", 0.0),
+                            chest = mObj.optDouble("chest", 0.0),
+                            waist = mObj.optDouble("waist", 0.0),
+                            hip = mObj.optDouble("hip", 0.0),
+                            collar = mObj.optDouble("collar", 0.0),
+                            armhole = mObj.optDouble("armhole", 0.0),
+                            sleeveMori = mObj.optDouble("sleeveMori", 0.0),
+                            trouserLength = mObj.optDouble("trouserLength", 0.0),
+                            trouserBottom = mObj.optDouble("trouserBottom", 0.0),
+                            trouserAsan = mObj.optDouble("trouserAsan", 0.0),
+                            notes = mObj.optString("notes", ""),
+                            lastUpdated = mObj.optLong("lastUpdated", System.currentTimeMillis()),
+                            galaType = mObj.optString("galaType", "کالر"),
+                            collarSize = mObj.optString("collarSize", "درمیانہ"),
+                            sleeveDesign = mObj.optString("sleeveDesign", "آستین سادہ"),
+                            frontPatti = mObj.optBoolean("frontPatti", true),
+                            frontPocket = mObj.optBoolean("frontPocket", true),
+                            sidePocket = mObj.optString("sidePocket", "2"),
+                            daman = mObj.optString("daman", "گول"),
+                            shalwarWidth = mObj.optString("shalwarWidth", "نارمل"),
+                            shalwarPocket = mObj.optBoolean("shalwarPocket", false),
+                            bukramQuality = mObj.optString("bukramQuality", "2 (درمیانی)")
+                        )
+                    )
+                }
+
+                val ordersList = mutableListOf<Order>()
+                val ordersArray = rootJson.optJSONArray("orders") ?: org.json.JSONArray()
+                for (i in 0 until ordersArray.length()) {
+                    val oObj = ordersArray.getJSONObject(i)
+                    ordersList.add(
+                        Order(
+                            id = oObj.optLong("id", 0L),
+                            customerId = oObj.optLong("customerId", 0L),
+                            trackingId = oObj.optString("trackingId", ""),
+                            itemType = oObj.optString("itemType", "Kameez Shalwar"),
+                            clothType = oObj.optString("clothType", ""),
+                            totalAmount = oObj.optDouble("totalAmount", 0.0),
+                            paidAmount = oObj.optDouble("paidAmount", 0.0),
+                            status = oObj.optString("status", "PENDING"),
+                            orderDate = oObj.optLong("orderDate", System.currentTimeMillis()),
+                            dueDate = oObj.optLong("dueDate", System.currentTimeMillis()),
+                            shirtLength = oObj.optDouble("shirtLength", 0.0),
+                            shoulder = oObj.optDouble("shoulder", 0.0),
+                            sleeves = oObj.optDouble("sleeves", 0.0),
+                            chest = oObj.optDouble("chest", 0.0),
+                            waist = oObj.optDouble("waist", 0.0),
+                            hip = oObj.optDouble("hip", 0.0),
+                            collar = oObj.optDouble("collar", 0.0),
+                            armhole = oObj.optDouble("armhole", 0.0),
+                            sleeveMori = oObj.optDouble("sleeveMori", 0.0),
+                            trouserLength = oObj.optDouble("trouserLength", 0.0),
+                            trouserBottom = oObj.optDouble("trouserBottom", 0.0),
+                            trouserAsan = oObj.optDouble("trouserAsan", 0.0),
+                            orderNotes = oObj.optString("orderNotes", ""),
+                            galaType = oObj.optString("galaType", "کالر"),
+                            collarSize = oObj.optString("collarSize", "درمیانہ"),
+                            sleeveDesign = oObj.optString("sleeveDesign", "آستین سادہ"),
+                            frontPatti = oObj.optBoolean("frontPatti", true),
+                            frontPocket = oObj.optBoolean("frontPocket", true),
+                            sidePocket = oObj.optString("sidePocket", "2"),
+                            daman = oObj.optString("daman", "گول"),
+                            shalwarWidth = oObj.optString("shalwarWidth", "نارمل"),
+                            shalwarPocket = oObj.optBoolean("shalwarPocket", false),
+                            bukramQuality = oObj.optString("bukramQuality", "2 (درمیانی)")
+                        )
+                    )
+                }
+
+                repository.restoreData(customersList, measurementsList, ordersList)
+                showToast("Data restored successfully! (${customersList.size} customers, ${ordersList.size} orders)")
+            } catch (e: Exception) {
+                showToast("Restore failed: ${e.localizedMessage}")
+            }
         }
     }
 

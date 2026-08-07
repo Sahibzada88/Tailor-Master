@@ -29,7 +29,17 @@ data class CustomerMeasurement(
     val trouserBottom: Double = 0.0,
     val trouserAsan: Double = 0.0,
     val notes: String = "",
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val galaType: String = "کالر",
+    val collarSize: String = "درمیانہ",
+    val sleeveDesign: String = "آستین سادہ",
+    val frontPatti: Boolean = true,
+    val frontPocket: Boolean = true,
+    val sidePocket: String = "2",
+    val daman: String = "گول",
+    val shalwarWidth: String = "نارمل",
+    val shalwarPocket: Boolean = false,
+    val bukramQuality: String = "2 (درمیانی)"
 )
 
 @Entity(tableName = "orders")
@@ -57,7 +67,17 @@ data class Order(
     val trouserLength: Double = 0.0,
     val trouserBottom: Double = 0.0,
     val trouserAsan: Double = 0.0,
-    val orderNotes: String = ""
+    val orderNotes: String = "",
+    val galaType: String = "کالر",
+    val collarSize: String = "درمیانہ",
+    val sleeveDesign: String = "آستین سادہ",
+    val frontPatti: Boolean = true,
+    val frontPocket: Boolean = true,
+    val sidePocket: String = "2",
+    val daman: String = "گول",
+    val shalwarWidth: String = "نارمل",
+    val shalwarPocket: Boolean = false,
+    val bukramQuality: String = "2 (درمیانی)"
 )
 
 data class OrderWithCustomer(
@@ -85,7 +105,17 @@ data class OrderWithCustomer(
     val trouserLength: Double,
     val trouserBottom: Double,
     val trouserAsan: Double,
-    val orderNotes: String
+    val orderNotes: String,
+    val galaType: String = "کالر",
+    val collarSize: String = "درمیانہ",
+    val sleeveDesign: String = "آستین سادہ",
+    val frontPatti: Boolean = true,
+    val frontPocket: Boolean = true,
+    val sidePocket: String = "2",
+    val daman: String = "گول",
+    val shalwarWidth: String = "نارمل",
+    val shalwarPocket: Boolean = false,
+    val bukramQuality: String = "2 (درمیانی)"
 )
 
 @Dao
@@ -138,6 +168,24 @@ interface TailorDao {
     @Delete
     suspend fun deleteOrder(order: Order)
 
+    @Query("SELECT * FROM customers")
+    suspend fun getAllCustomersList(): List<Customer>
+
+    @Query("SELECT * FROM measurements")
+    suspend fun getAllMeasurementsList(): List<CustomerMeasurement>
+
+    @Query("SELECT * FROM orders")
+    suspend fun getAllOrdersList(): List<Order>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCustomers(customers: List<Customer>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMeasurements(measurements: List<CustomerMeasurement>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrders(orders: List<Order>)
+
     // Statistics and quick counts for summary reports
     @Query("SELECT COUNT(*) FROM customers")
     fun getCustomerCountFlow(): Flow<Int>
@@ -155,7 +203,7 @@ interface TailorDao {
     fun getTotalCollectedFlow(): Flow<Double?>
 }
 
-@Database(entities = [Customer::class, CustomerMeasurement::class, Order::class], version = 2, exportSchema = false)
+@Database(entities = [Customer::class, CustomerMeasurement::class, Order::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun tailorDao(): TailorDao
 

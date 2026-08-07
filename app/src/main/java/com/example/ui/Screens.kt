@@ -2,6 +2,8 @@ package com.example.ui
 
 import android.app.DatePickerDialog
 import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -122,6 +124,13 @@ fun TailorAppMain(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.navigateTo(TailorViewModel.Screen.SETTINGS_BACKUP) }) {
+                        Icon(
+                            imageVector = Icons.Default.CloudSync,
+                            contentDescription = "Backup Data",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(onClick = { viewModel.navigateTo(TailorViewModel.Screen.ACTIVATION) }) {
                         Icon(
                             imageVector = if (isActivated) Icons.Default.Verified else Icons.Default.VpnKey,
@@ -192,6 +201,7 @@ fun TailorAppMain(
                     TailorViewModel.Screen.ADD_EDIT_ORDER -> AddEditOrderScreen(viewModel)
                     TailorViewModel.Screen.MEASUREMENTS -> EditMeasurementsScreen(viewModel)
                     TailorViewModel.Screen.ACTIVATION -> ActivationScreen(viewModel)
+                    TailorViewModel.Screen.SETTINGS_BACKUP -> SettingsBackupScreen(viewModel)
                 }
             }
         }
@@ -207,6 +217,10 @@ fun DashboardScreen(viewModel: TailorViewModel) {
     val totalRevenue by viewModel.totalRevenue.collectAsStateWithLifecycle()
     val totalCollected by viewModel.totalCollected.collectAsStateWithLifecycle()
     val totalOutstanding by viewModel.totalOutstanding.collectAsStateWithLifecycle()
+    val stitchedOrderCount by viewModel.stitchedOrderCount.collectAsStateWithLifecycle()
+    val pendingOrderCount by viewModel.pendingOrderCount.collectAsStateWithLifecycle()
+    val inProgressOrderCount by viewModel.inProgressOrderCount.collectAsStateWithLifecycle()
+    val deliveredOrderCount by viewModel.deliveredOrderCount.collectAsStateWithLifecycle()
     val orders by viewModel.ordersWithCustomer.collectAsStateWithLifecycle()
     val isActivated by viewModel.isActivated.collectAsStateWithLifecycle()
     val remainingTrialDays by viewModel.remainingTrialDays.collectAsStateWithLifecycle()
@@ -380,6 +394,226 @@ fun DashboardScreen(viewModel: TailorViewModel) {
             }
         }
 
+        // Stitching Analytics & Suits Completion Section
+        item {
+            Text(
+                text = "Stitching Analytics (سلائی اینالیٹکس)",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 0.2.sp
+            )
+        }
+
+        item {
+            val progressRatio = if (orderCount > 0) stitchedOrderCount.toFloat() / orderCount.toFloat() else 0f
+            val percentInt = (progressRatio * 100).toInt()
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Analytics,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Total Suits Stitched",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "مکمل سلائی شدہ سوٹ کی تفصیلات",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "$stitchedOrderCount / $orderCount Suits",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+
+                    // Progress Bar
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Stitching Completion Rate",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$percentInt% Completed",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { progressRatio },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    // 4 Grid Status Analytics
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Stitched / Complete
+                        MiniAnalyticsCard(
+                            label = "Stitched",
+                            urduLabel = "مکمل",
+                            count = "$stitchedOrderCount",
+                            icon = Icons.Default.CheckCircle,
+                            color = Color(0xFF2E7D32),
+                            modifier = Modifier.weight(1f)
+                        )
+                        // Under Stitching
+                        MiniAnalyticsCard(
+                            label = "In Progress",
+                            urduLabel = "زیرِ سلائی",
+                            count = "$inProgressOrderCount",
+                            icon = Icons.Default.ContentCut,
+                            color = Color(0xFF0288D1),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Pending
+                        MiniAnalyticsCard(
+                            label = "Pending",
+                            urduLabel = "پینڈنگ",
+                            count = "$pendingOrderCount",
+                            icon = Icons.Default.HourglassEmpty,
+                            color = Color(0xFFE65100),
+                            modifier = Modifier.weight(1f)
+                        )
+                        // Delivered
+                        MiniAnalyticsCard(
+                            label = "Delivered",
+                            urduLabel = "ڈیلیور",
+                            count = "$deliveredOrderCount",
+                            icon = Icons.Default.LocalShipping,
+                            color = Color(0xFF6A1B9A),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Quick Backup & Restore Shortcut Card
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.navigateTo(TailorViewModel.Screen.SETTINGS_BACKUP) },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudSync,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Settings & Data Backup (بیک اپ ڈیٹا)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Save or Load backup files to protect customer records",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
         // Deadline alerts section
         item {
             Row(
@@ -512,6 +746,60 @@ fun StatCard(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MiniAnalyticsCard(
+    label: String,
+    urduLabel: String,
+    count: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = color.copy(alpha = 0.08f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.25f))
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(color.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            Column {
+                Text(
+                    text = count,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 15.sp,
+                    color = color
+                )
+                Text(
+                    text = "$label ($urduLabel)",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -1954,6 +2242,16 @@ fun EditMeasurementsScreen(viewModel: TailorViewModel) {
     var mTrouserBottom by remember { mutableStateOf(measurements.trouserBottom.toString().replace("0.0", "")) }
     var mTrouserAsan by remember { mutableStateOf(measurements.trouserAsan.toString().replace("0.0", "")) }
     var mNotes by remember { mutableStateOf(measurements.notes) }
+    var galaType by remember { mutableStateOf(measurements.galaType) }
+    var collarSize by remember { mutableStateOf(measurements.collarSize) }
+    var sleeveDesign by remember { mutableStateOf(measurements.sleeveDesign) }
+    var frontPatti by remember { mutableStateOf(measurements.frontPatti) }
+    var frontPocket by remember { mutableStateOf(measurements.frontPocket) }
+    var sidePocket by remember { mutableStateOf(measurements.sidePocket) }
+    var daman by remember { mutableStateOf(measurements.daman) }
+    var shalwarWidth by remember { mutableStateOf(measurements.shalwarWidth) }
+    var shalwarPocket by remember { mutableStateOf(measurements.shalwarPocket) }
+    var bukramQuality by remember { mutableStateOf(measurements.bukramQuality) }
 
     Column(
         modifier = Modifier
@@ -2476,6 +2774,21 @@ fun EditMeasurementsScreen(viewModel: TailorViewModel) {
             )
         )
 
+        Spacer(modifier = Modifier.height(4.dp))
+
+        DesignAndStitchingSection(
+            galaType = galaType, onGalaTypeChange = { galaType = it },
+            collarSize = collarSize, onCollarSizeChange = { collarSize = it },
+            sleeveDesign = sleeveDesign, onSleeveDesignChange = { sleeveDesign = it },
+            frontPatti = frontPatti, onFrontPattiChange = { frontPatti = it },
+            frontPocket = frontPocket, onFrontPocketChange = { frontPocket = it },
+            sidePocket = sidePocket, onSidePocketChange = { sidePocket = it },
+            daman = daman, onDamanChange = { daman = it },
+            shalwarWidth = shalwarWidth, onShalwarWidthChange = { shalwarWidth = it },
+            shalwarPocket = shalwarPocket, onShalwarPocketChange = { shalwarPocket = it },
+            bukramQuality = bukramQuality, onBukramQualityChange = { bukramQuality = it }
+        )
+
         Button(
             onClick = {
                 val updatedVal = measurements.copy(
@@ -2492,7 +2805,17 @@ fun EditMeasurementsScreen(viewModel: TailorViewModel) {
                     trouserBottom = mTrouserBottom.toDoubleOrZero(),
                     trouserAsan = mTrouserAsan.toDoubleOrZero(),
                     notes = mNotes,
-                    lastUpdated = System.currentTimeMillis()
+                    lastUpdated = System.currentTimeMillis(),
+                    galaType = galaType,
+                    collarSize = collarSize,
+                    sleeveDesign = sleeveDesign,
+                    frontPatti = frontPatti,
+                    frontPocket = frontPocket,
+                    sidePocket = sidePocket,
+                    daman = daman,
+                    shalwarWidth = shalwarWidth,
+                    shalwarPocket = shalwarPocket,
+                    bukramQuality = bukramQuality
                 )
                 viewModel.saveMeasurements(updatedVal)
             },
@@ -2543,6 +2866,18 @@ fun AddEditOrderScreen(viewModel: TailorViewModel) {
     var status by remember { mutableStateOf(existing?.status ?: "PENDING") }
     var dueDate by remember { mutableStateOf(existing?.dueDate ?: (System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000L)) }
     var orderNotes by remember { mutableStateOf(existing?.orderNotes ?: "") }
+
+    // Design & Stitching custom preferences state
+    var galaType by remember { mutableStateOf(existing?.galaType ?: defaultMeasurements?.galaType ?: "کالر") }
+    var collarSize by remember { mutableStateOf(existing?.collarSize ?: defaultMeasurements?.collarSize ?: "درمیانہ") }
+    var sleeveDesign by remember { mutableStateOf(existing?.sleeveDesign ?: defaultMeasurements?.sleeveDesign ?: "آستین سادہ") }
+    var frontPatti by remember { mutableStateOf(existing?.frontPatti ?: defaultMeasurements?.frontPatti ?: true) }
+    var frontPocket by remember { mutableStateOf(existing?.frontPocket ?: defaultMeasurements?.frontPocket ?: true) }
+    var sidePocket by remember { mutableStateOf(existing?.sidePocket ?: defaultMeasurements?.sidePocket ?: "2") }
+    var daman by remember { mutableStateOf(existing?.daman ?: defaultMeasurements?.daman ?: "گول") }
+    var shalwarWidth by remember { mutableStateOf(existing?.shalwarWidth ?: defaultMeasurements?.shalwarWidth ?: "نارمل") }
+    var shalwarPocket by remember { mutableStateOf(existing?.shalwarPocket ?: defaultMeasurements?.shalwarPocket ?: false) }
+    var bukramQuality by remember { mutableStateOf(existing?.bukramQuality ?: defaultMeasurements?.bukramQuality ?: "2 (درمیانی)") }
 
     // Measurements for this individual article
     var shirtLength by remember { mutableStateOf(existing?.shirtLength?.toString() ?: defaultMeasurements?.shirtLength?.toString() ?: "") }
@@ -3025,6 +3360,21 @@ fun AddEditOrderScreen(viewModel: TailorViewModel) {
             )
         )
 
+        Spacer(modifier = Modifier.height(4.dp))
+
+        DesignAndStitchingSection(
+            galaType = galaType, onGalaTypeChange = { galaType = it },
+            collarSize = collarSize, onCollarSizeChange = { collarSize = it },
+            sleeveDesign = sleeveDesign, onSleeveDesignChange = { sleeveDesign = it },
+            frontPatti = frontPatti, onFrontPattiChange = { frontPatti = it },
+            frontPocket = frontPocket, onFrontPocketChange = { frontPocket = it },
+            sidePocket = sidePocket, onSidePocketChange = { sidePocket = it },
+            daman = daman, onDamanChange = { daman = it },
+            shalwarWidth = shalwarWidth, onShalwarWidthChange = { shalwarWidth = it },
+            shalwarPocket = shalwarPocket, onShalwarPocketChange = { shalwarPocket = it },
+            bukramQuality = bukramQuality, onBukramQualityChange = { bukramQuality = it }
+        )
+
         Button(
             onClick = {
                 viewModel.saveOrder(
@@ -3047,7 +3397,17 @@ fun AddEditOrderScreen(viewModel: TailorViewModel) {
                     trouserLength = trouserLength.toDoubleOrZero(),
                     trouserBottom = trouserBottom.toDoubleOrZero(),
                     trouserAsan = trouserAsan.toDoubleOrZero(),
-                    orderNotes = orderNotes
+                    orderNotes = orderNotes,
+                    galaType = galaType,
+                    collarSize = collarSize,
+                    sleeveDesign = sleeveDesign,
+                    frontPatti = frontPatti,
+                    frontPocket = frontPocket,
+                    sidePocket = sidePocket,
+                    daman = daman,
+                    shalwarWidth = shalwarWidth,
+                    shalwarPocket = shalwarPocket,
+                    bukramQuality = bukramQuality
                 )
             },
             shape = RoundedCornerShape(16.dp),
@@ -3377,6 +3737,507 @@ fun ActivationScreen(viewModel: TailorViewModel) {
                         Text("Go to Dashboard")
                     }
                 }
+            }
+        }
+    }
+}
+
+// 9. DESIGN & STITCHING SPECIFICATIONS COMPONENT
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun DesignAndStitchingSection(
+    galaType: String, onGalaTypeChange: (String) -> Unit,
+    collarSize: String, onCollarSizeChange: (String) -> Unit,
+    sleeveDesign: String, onSleeveDesignChange: (String) -> Unit,
+    frontPatti: Boolean, onFrontPattiChange: (Boolean) -> Unit,
+    frontPocket: Boolean, onFrontPocketChange: (Boolean) -> Unit,
+    sidePocket: String, onSidePocketChange: (String) -> Unit,
+    daman: String, onDamanChange: (String) -> Unit,
+    shalwarWidth: String, onShalwarWidthChange: (String) -> Unit,
+    shalwarPocket: Boolean, onShalwarPocketChange: (Boolean) -> Unit,
+    bukramQuality: String, onBukramQualityChange: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Checkroom,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+                Text(
+                    text = "ڈیژائن اور سلائی (Design & Stitching Specifications)",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+            // 1. Gala Type / Neck Design
+            Text("گلہ / کالر ٹائپ (Gala / Neck Design):", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+            val galaOptions = listOf("کالر", "بین", "گول", "وی گلا", "ڈیزائن گلا")
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                galaOptions.forEach { option ->
+                    FilterChip(
+                        selected = galaType == option,
+                        onClick = { onGalaTypeChange(option) },
+                        label = { Text(option, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+            }
+
+            // 2. Collar Size
+            if (galaType == "کالر" || galaType == "بین") {
+                Text("کالر / بین سائز (Collar Size):", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                val collarSizeOptions = listOf("بڑا", "درمیانہ", "چھوٹا")
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    collarSizeOptions.forEach { option ->
+                        FilterChip(
+                            selected = collarSize == option,
+                            onClick = { onCollarSizeChange(option) },
+                            label = { Text(option, fontWeight = FontWeight.Bold) },
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
+                }
+            }
+
+            // 3. Sleeve Design
+            Text("آستین کا ڈیزائن (Sleeve Design):", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+            val sleeveOptions = listOf("آستین سادہ", "کف", "پٹی کف", "ہاف آستین")
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                sleeveOptions.forEach { option ->
+                    FilterChip(
+                        selected = sleeveDesign == option,
+                        onClick = { onSleeveDesignChange(option) },
+                        label = { Text(option, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+            }
+
+            // 4. Front Patti & Front Pocket (Switches)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("سامنے پٹی (Front Patti):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Switch(
+                    checked = frontPatti,
+                    onCheckedChange = onFrontPattiChange
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("سامنے کی جیب (Front Pocket):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Switch(
+                    checked = frontPocket,
+                    onCheckedChange = onFrontPocketChange
+                )
+            }
+
+            // 5. Side Pockets
+            Text("سائیڈ جیب (Side Pockets):", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+            val sidePocketOptions = listOf("0", "1", "2")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                sidePocketOptions.forEach { option ->
+                    FilterChip(
+                        selected = sidePocket == option,
+                        onClick = { onSidePocketChange(option) },
+                        label = { Text("$option Pocket(s)", fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+            }
+
+            // 6. Daman (Daman shape)
+            Text("دامن (Daman Cut):", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+            val damanOptions = listOf("گول", "چورس")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                damanOptions.forEach { option ->
+                    FilterChip(
+                        selected = daman == option,
+                        onClick = { onDamanChange(option) },
+                        label = { Text(option, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+            }
+
+            // 7. Shalwar Width & Shalwar Pocket
+            Text("شلوار چوڑائی (Shalwar Fitting/Width):", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+            val shalwarWidthOptions = listOf("نارمل", "کھلی", "تنگ")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                shalwarWidthOptions.forEach { option ->
+                    FilterChip(
+                        selected = shalwarWidth == option,
+                        onClick = { onShalwarWidthChange(option) },
+                        label = { Text(option, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("شلوار میں جیب (Shalwar Pocket):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Switch(
+                    checked = shalwarPocket,
+                    onCheckedChange = onShalwarPocketChange
+                )
+            }
+
+            // 8. Bukram Quality
+            Text("بکرم کوالٹی (Bukram Stiffness/Quality):", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+            val bukramOptions = listOf("1 (ہلکی)", "2 (درمیانی)", "3 (بھاری)")
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                bukramOptions.forEach { option ->
+                    FilterChip(
+                        selected = bukramQuality == option,
+                        onClick = { onBukramQualityChange(option) },
+                        label = { Text(option, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// 10. SETTINGS & DATA BACKUP SCREEN
+@Composable
+fun SettingsBackupScreen(viewModel: TailorViewModel) {
+    val context = LocalContext.current
+
+    // Launcher for selecting JSON backup file to restore
+    val restoreLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            try {
+                val inputStream = context.contentResolver.openInputStream(it)
+                val jsonString = inputStream?.bufferedReader()?.use { reader -> reader.readText() }
+                if (!jsonString.isNullOrBlank()) {
+                    viewModel.restoreBackupData(jsonString)
+                } else {
+                    viewModel.showToast("Selected backup file is empty.")
+                }
+            } catch (e: Exception) {
+                viewModel.showToast("Failed to read backup file: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    var showPasteDialog by remember { mutableStateOf(false) }
+    var pasteJsonText by remember { mutableStateOf("") }
+
+    if (showPasteDialog) {
+        AlertDialog(
+            onDismissRequest = { showPasteDialog = false },
+            title = { Text("Paste Backup JSON Data", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = pasteJsonText,
+                    onValueChange = { pasteJsonText = it },
+                    label = { Text("Paste JSON code here") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (pasteJsonText.isNotBlank()) {
+                            viewModel.restoreBackupData(pasteJsonText)
+                            showPasteDialog = false
+                            pasteJsonText = ""
+                        }
+                    }
+                ) {
+                    Text("Restore Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPasteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            Column {
+                Text(
+                    text = "Settings & Backup",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Data Management (بیک اپ اور ری سٹور)",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Info Banner Card (Urdu text)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "اپنے ڈیٹا کو محفوظ رکھنے کے لیے ہفتے میں ایک بار بیک اپ ضرور لیا کریں۔ بیک اپ فائل کو واٹس ایپ یا ای میل پر محفوظ کریں۔",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 20.sp
+                )
+            }
+        }
+
+        // 1. Backup Data (Save) Option Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    viewModel.exportBackupData(context) { backupFile ->
+                        try {
+                            val authority = "${context.packageName}.provider"
+                            val uri = androidx.core.content.FileProvider.getUriForFile(context, authority, backupFile)
+                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(android.content.Intent.createChooser(intent, "Save or Share Backup File:"))
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Backup saved: ${backupFile.name}", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                },
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier.padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudUpload,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Backup Data (Save)",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Sara record file main save karein (ڈیٹا سیو کریں)",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        // 2. Restore Data (Load) Option Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    restoreLauncher.launch("*/*")
+                },
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier.padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudDownload,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Restore Data (Load)",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Backup file wapis upload karein (ڈیٹا لوڈ کریں)",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
+
+        // Direct Paste JSON Backup Text Option
+        OutlinedButton(
+            onClick = { showPasteDialog = true },
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Paste Backup JSON Text directly", fontWeight = FontWeight.Bold)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Red Warning Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF0F0)),
+            shape = RoundedCornerShape(18.dp),
+            border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFFFCDD2)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = Color.Red,
+                    modifier = Modifier.size(28.dp)
+                )
+                Text(
+                    text = "ایپ کو Delete کرنے سے پہلے Backup ضرور لیا کریں ورنہ آپ کا ڈیٹا ضائع ہو جائے گا جس کی ریکوری ناممکن ہے۔ شکریہ!",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFB71C1C),
+                    lineHeight = 20.sp
+                )
             }
         }
     }
